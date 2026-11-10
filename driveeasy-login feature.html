@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DriveEasy — Authentication</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* =========================================================
+       Theme variables and global styles
+       Used for colors, spacing, and shared typography across the page.
+       ========================================================= */
+    :root {
+      --bg: #090c16;
+      --surface: #0d1220;
+      --field: #121826;
+      --border: #242e42;
+      --blue: #0052ff;
+      --muted: #8f9cae;
+      --placeholder: #5f6c7d;
+      --white: #fff;
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: clamp(16px, 4vw, 48px);
+      background:
+        radial-gradient(900px 500px at 50% -10%, rgba(0,82,255,.16), transparent 70%),
+        var(--bg);
+      color: var(--white);
+      font-family: "Geist", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; }
+
+    /* =========================================================
+       Main card and screen layout
+       .auth-card handles the centered login/signup container.
+       .screen controls the visible authentication step (signup/login).
+       ========================================================= */
+    .auth-card {
+      width: 100%;
+      max-width: 440px;
+      padding: clamp(24px, 5vw, 40px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, .35);
+    }
+    .screen { display: none; width: 100%; }
+    .screen.active { display: block; }
+    /* =========================================================
+       Brand/header section
+       Used for the DriveEasy logo, title, and subtitle shown on both screens.
+       ========================================================= */
+    .body-content {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(24px, 4vw, 32px);
+    }
+    .brand-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      text-align: center;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .logo-icon {
+      width: 40px; height: 40px;
+      display: grid; place-items: center;
+      border-radius: 12px;
+      background: var(--blue);
+    }
+    .brand-name {
+      font: 800 22px/1 "Outfit", sans-serif;
+      letter-spacing: -.3px;
+    }
+    .brand-name span { color: var(--blue); }
+    h1 {
+      margin: 0;
+      font: 700 clamp(22px, 5vw, 26px)/1.2 "Outfit", sans-serif;
+      letter-spacing: -.35px;
+    }
+    .subtitle {
+      margin: -4px 0 0;
+      color: var(--muted);
+      font: 400 14px/1.45 "Geist", sans-serif;
+    }
+    /* =========================================================
+       Form controls
+       These styles are used for all input fields, password toggles,
+       labels, and the form layout for both sign up and sign in.
+       ========================================================= */
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 100%;
+    }
+    .field { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+    label {
+      color: var(--muted);
+      font: 500 14px/1.2 "Outfit", sans-serif;
+    }
+    .input-wrap {
+      height: 52px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--field);
+      transition: border-color .18s, box-shadow .18s;
+    }
+    .input-wrap:hover { border-color: #33405a; }
+    .input-wrap:focus-within {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(0,82,255,.18);
+    }
+    input {
+      width: 100%;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--white);
+      font: 400 16px "Geist", sans-serif; /* 16px avoids iOS zoom */
+    }
+    input::placeholder { color: var(--placeholder); opacity: 1; }
+    input:-webkit-autofill {
+      -webkit-text-fill-color: var(--white);
+      box-shadow: 0 0 0 40px var(--field) inset;
+    }
+    .toggle-password {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 0;
+      width: 24px; height: 24px;
+      flex: 0 0 24px;
+      display: grid; place-items: center;
+      cursor: pointer;
+      transition: color .15s;
+    }
+    .toggle-password:hover { color: var(--white); }
+    /* =========================================================
+       Action links and buttons
+       These styles control the forgot-password link, text toggles,
+       primary submit buttons, and the switch between signup/login views.
+       ========================================================= */
+    .forgot-row { display: flex; justify-content: flex-end; }
+    .text-link {
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: #4d85ff;
+      font: 500 14px "Geist", sans-serif;
+      cursor: pointer;
+    }
+    .text-link:hover { text-decoration: underline; }
+    .text-link:focus-visible,
+    .toggle-password:focus-visible,
+    .primary:focus-visible {
+      outline: 2px solid var(--blue);
+      outline-offset: 3px;
+      border-radius: 8px;
+    }
+    .actions { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+    .primary {
+      height: 52px;
+      width: 100%;
+      border: 0;
+      border-radius: 14px;
+      color: #fff;
+      background: var(--blue);
+      box-shadow: 0 4px 12px rgba(0,82,255,.3);
+      font: 600 16px "Outfit", sans-serif;
+      cursor: pointer;
+      transition: filter .15s, transform .15s;
+    }
+    .primary:hover { filter: brightness(1.1); }
+    .primary:active { transform: translateY(1px); }
+    .switch-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 4px;
+      color: var(--muted);
+      font: 400 14px/1.3 "Geist", sans-serif;
+      text-align: center;
+    }
+    .switch-row button { font-weight: 600; }
+    /* =========================================================
+       Validation and UX feedback
+       .message is used to show validation errors or success states.
+       .success changes the alert color for valid submissions.
+       ========================================================= */
+    .message {
+      display: none;
+      margin: -8px 0 0;
+      color: #ff8c8c;
+      font: 400 13px/1.4 "Geist", sans-serif;
+    }
+    .message.show { display: block; }
+    .success { color: #76d6a2; }
+
+    /* Phones: full-bleed, no card chrome */
+    @media (max-width: 480px) {
+      body { padding: 0; place-items: stretch; background: var(--surface); }
+      .auth-card {
+        max-width: none;
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: max(32px, env(safe-area-inset-top)) 20px max(32px, env(safe-area-inset-bottom));
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+    /* Short viewports (landscape phones, small laptops) */
+    @media (max-height: 720px) and (min-width: 481px) {
+      body { place-items: start center; }
+    }
+  </style>
+</head>
+<body>
+  <!--
+    The whole page is the authentication area.
+    Everything inside <main> is the card that holds the login/signup forms.
+    We use one card and switch between two "screens" instead of creating separate pages.
+  -->
+  <main class="auth-card" aria-label="DriveEasy authentication">
+    <!--
+      SIGN-UP SCREEN
+      This is the first screen shown to a new user.
+      It asks for name, email, and password so the user can create an account.
+    -->
+    <section class="screen active" id="signup-screen">
+      <div class="body-content">
+        <header class="brand-wrapper">
+          <div class="brand">
+            <div class="logo-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.3" stroke="white" stroke-width="1.6"/><path d="m8.5 8.5 5 5m0-5-5 5" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </div>
+            <div class="brand-name">Drive<span>Easy</span></div>
+          </div>
+          <h1>Get Started with DriveEasy</h1>
+          <p class="subtitle">Your seamless modern car rental journey starts here.</p>
+        </header>
+
+        <!--
+          This form collects the information needed to register a new user.
+          Each .field is a label + input pair.
+          The password field also includes an eye button so users can see/hide their password.
+        -->
+        <form id="signup-form" novalidate>
+          <div class="field">
+            <label for="signup-name">Full Name</label>
+            <div class="input-wrap"><input id="signup-name" name="name" autocomplete="name" placeholder="John Doe" required></div>
+          </div>
+          <div class="field">
+            <label for="signup-email">Email Address</label>
+            <div class="input-wrap"><input id="signup-email" name="email" type="email" autocomplete="email" placeholder="john.doe@example.com" required></div>
+          </div>
+          <div class="field">
+            <label for="signup-password">Password</label>
+            <div class="input-wrap">
+              <input id="signup-password" name="password" type="password" autocomplete="new-password" placeholder="Minimum 8 characters" minlength="8" required>
+              <!-- Eye button: used to toggle password visibility on the sign-up form. -->
+              <button class="toggle-password" type="button" data-target="signup-password" aria-label="Show password">
+                <svg class="eye-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10s2.9-5 8-5 8 5 8 5-2.9 5-8 5-8-5-8-5Z"/><circle cx="10" cy="10" r="2.2"/><path class="slash" d="m3 3 14 14" /></svg>
+              </button>
+            </div>
+          </div>
+          <!--
+            This paragraph is where validation messages appear.
+            Example: empty name, invalid email, weak password.
+          -->
+          <p class="message" id="signup-message" role="alert"></p>
+          <div class="actions">
+            <button class="primary" type="submit">Create Account</button>
+            <div class="switch-row">Already have an account? <button class="text-link" type="button" data-go="login">Sign In</button></div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!--
+      LOGIN SCREEN
+      This screen is for users who already created an account.
+      It asks for email and password so they can sign in.
+    -->
+    <section class="screen" id="login-screen">
+      <div class="body-content">
+        <header class="brand-wrapper">
+          <div class="brand">
+            <div class="logo-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8.3" stroke="white" stroke-width="1.6"/><path d="m8.5 8.5 5 5m0-5-5 5" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </div>
+            <div class="brand-name">Drive<span>Easy</span></div>
+          </div>
+          <h1>Welcome Back</h1>
+          <p class="subtitle">Sign in to manage your bookings and find vehicles.</p>
+        </header>
+
+        <!--
+          This form is for returning users who already have an account.
+          The forgot password link sits above the sign-in button for easy recovery.
+        -->
+        <form id="login-form" novalidate>
+          <div class="field">
+            <label for="login-email">Email Address</label>
+            <div class="input-wrap"><input id="login-email" name="email" type="email" autocomplete="email" placeholder="john.doe@example.com" required></div>
+          </div>
+          <div class="field">
+            <label for="login-password">Password</label>
+            <div class="input-wrap">
+              <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
+              <!-- Eye button: lets the user show or hide the typed password. -->
+              <button class="toggle-password" type="button" data-target="login-password" aria-label="Show password">
+                <svg class="eye-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10s2.9-5 8-5 8 5 8 5-2.9 5-8 5-8-5-8-5Z"/><circle cx="10" cy="10" r="2.2"/><path class="slash" d="m3 3 14 14" /></svg>
+              </button>
+            </div>
+          </div>
+          <div class="forgot-row"><button class="text-link" id="forgot-password" type="button">Forgot Password?</button></div>
+          <!--
+            This message area will show login errors or success feedback.
+            It also handles the forgot-password flow.
+          -->
+          <p class="message" id="login-message" role="alert"></p>
+          <div class="actions">
+            <button class="primary" type="submit">Sign In</button>
+            <div class="switch-row">Don't have an account? <button class="text-link" type="button" data-go="signup">Create Account</button></div>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ---------------------------------------------------------
+    // AUTHENTICATION SCREEN SWITCHING
+    // ---------------------------------------------------------
+    // This object keeps references to the two visible screens:
+    // - signup-screen: used to create a new account
+    // - login-screen: used to sign in to an existing account
+    const screens = {
+      signup: document.getElementById("signup-screen"),
+      login: document.getElementById("login-screen")
+    };
+
+    // showScreen(name) switches between the forms.
+    // It hides the current screen and shows only the one matching the selected name.
+    function showScreen(name) {
+      Object.entries(screens).forEach(([key, screen]) => {
+        screen.classList.toggle("active", key === name);
+      });
+      document.querySelectorAll(".message").forEach(message => {
+        message.textContent = "";
+        message.classList.remove("show", "success");
+      });
+    }
+
+    // Buttons with data-go="login" or data-go="signup" trigger this function.
+    // Example: clicking "Sign In" on the sign-up screen moves to the login screen.
+    document.querySelectorAll("[data-go]").forEach(button => {
+      button.addEventListener("click", () => showScreen(button.dataset.go));
+    });
+
+    // ---------------------------------------------------------
+    // PASSWORD VISIBILITY TOGGLE
+    // ---------------------------------------------------------
+    // This code makes the eye button work for both password fields.
+    // When the button is clicked, the input type changes from password to text.
+    document.querySelectorAll(".toggle-password").forEach(button => {
+      button.addEventListener("click", () => {
+        const input = document.getElementById(button.dataset.target);
+        const reveal = input.type === "password";
+        input.type = reveal ? "text" : "password";
+        button.setAttribute("aria-label", reveal ? "Hide password" : "Show password");
+        button.querySelector(".slash").style.display = reveal ? "none" : "block";
+      });
+    });
+
+    // ---------------------------------------------------------
+    // MESSAGE DISPLAY HELPER
+    // ---------------------------------------------------------
+    // This helper puts text under the form to tell the user:
+    // - what is missing
+    // - what format is wrong
+    // - whether the validation was successful
+    function showMessage(id, text, success = false) {
+      const el = document.getElementById(id);
+      el.textContent = text;
+      el.classList.toggle("success", success);
+      el.classList.add("show");
+    }
+
+    // ---------------------------------------------------------
+    // SIGN-UP FORM VALIDATION
+    // ---------------------------------------------------------
+    // This runs when the user clicks "Create Account".
+    // It checks the entered values before allowing the form to continue.
+    document.getElementById("signup-form").addEventListener("submit", event => {
+      event.preventDefault();
+      const name = document.getElementById("signup-name").value.trim();
+      const email = document.getElementById("signup-email").value.trim();
+      const password = document.getElementById("signup-password").value;
+      const messageId = "signup-message";
+
+      // If name field is empty, show a red error message.
+      if (!name) return showMessage(messageId, "Please enter your full name.");
+
+      // Validate email format using a simple regular expression.
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showMessage(messageId, "Please enter a valid email address.");
+
+      // Password must be at least 8 characters long.
+      if (password.length < 8) return showMessage(messageId, "Password must contain at least 8 characters.");
+
+      // If everything is valid, show a green success message.
+      showMessage(messageId, "Account details validated. Connect a backend to create the account.", true);
+    });
+
+    // ---------------------------------------------------------
+    // LOGIN FORM VALIDATION
+    // ---------------------------------------------------------
+    // This runs when the user clicks "Sign In".
+    // It checks whether the email looks valid and whether a password was entered.
+    document.getElementById("login-form").addEventListener("submit", event => {
+      event.preventDefault();
+      const email = document.getElementById("login-email").value.trim();
+      const password = document.getElementById("login-password").value;
+      const messageId = "login-message";
+
+      // Validate email format.
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showMessage(messageId, "Please enter a valid email address.");
+
+      // Password must not be empty.
+      if (!password) return showMessage(messageId, "Please enter your password.");
+
+      // Success feedback for front-end validation only.
+      showMessage(messageId, "Input validated. Connect an authentication backend to sign in.", true);
+    });
+
+    // ---------------------------------------------------------
+    // FORGOT PASSWORD FLOW
+    // ---------------------------------------------------------
+    // If a user forgot their password, this code checks whether an email has been entered.
+    // If yes, it shows a reset-message-style success prompt.
+    // If no, it tells the user to enter an email first.
+    document.getElementById("forgot-password").addEventListener("click", () => {
+      const email = document.getElementById("login-email").value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showMessage("login-message", "Enter your email address first to start password recovery.");
+        document.getElementById("login-email").focus();
+        return;
+      }
+      showMessage("login-message", "Password recovery UI is ready. Connect an email service to send a reset link.", true);
+    });
+  </script>
+</body>
+</html>
